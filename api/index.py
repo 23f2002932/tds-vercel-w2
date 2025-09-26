@@ -1,14 +1,14 @@
 import json
 from http.server import BaseHTTPRequestHandler
 
-# --- Helper function to calculate percentile without numpy ---
+# --- Helper function to calculate percentile without external libraries ---
 def calculate_percentile(data, percentile):
     if not data:
         return 0
     size = len(data)
     sorted_data = sorted(data)
     index = (percentile / 100) * (size - 1)
-
+    
     if index.is_integer():
         return sorted_data[int(index)]
     else:
@@ -62,7 +62,7 @@ telemetry_data = [
 
 class handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
-        # This handles the pre-flight request for CORS
+        # This handles the pre-flight request for CORS, which is crucial
         self.send_response(200, "ok")
         self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
@@ -71,6 +71,7 @@ class handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         try:
+            # Read the body of the POST request
             content_length = int(self.headers['Content-Length'])
             post_data = self.rfile.read(content_length)
             request_body = json.loads(post_data)
@@ -82,11 +83,11 @@ class handler(BaseHTTPRequestHandler):
 
             for region in regions_to_process:
                 region_data = [d for d in telemetry_data if d['region'] == region]
-
+                
                 if region_data:
                     latencies = [d['latency_ms'] for d in region_data]
                     uptimes = [d['uptime_pct'] for d in region_data]
-
+                    
                     avg_latency = round(sum(latencies) / len(latencies), 2)
                     p95_latency = round(calculate_percentile(latencies, 95), 2)
                     avg_uptime = round(sum(uptimes) / len(uptimes), 3)
@@ -99,7 +100,8 @@ class handler(BaseHTTPRequestHandler):
                         "avg_uptime": avg_uptime,
                         "breaches": breaches,
                     })
-
+            
+            # Prepare and send the response
             response_data = json.dumps({"regions": results})
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
@@ -112,8 +114,9 @@ class handler(BaseHTTPRequestHandler):
             self.end_headers()
             error_message = json.dumps({"error": str(e)})
             self.wfile.write(error_message.encode('utf-8'))
-
+    
     def do_GET(self):
+        # A simple GET response to confirm the server is running
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
         self.send_header('Access-Control-Allow-Origin', '*')
